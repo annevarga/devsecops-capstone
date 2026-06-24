@@ -1,0 +1,79 @@
+# .gitleaks.toml
+# Place this file in the ROOT of your repository.
+# Gitleaks reads this config automatically when it runs.
+#
+# This config extends the default Gitleaks ruleset (which already covers
+# 150+ secret patterns: AWS keys, GitHub tokens, private keys, etc.)
+# and adds project-specific rules for this DevSecOps project.
+
+title = "Three-Tier DevSecOps Project — Gitleaks Config"
+
+# ── Extend the default ruleset ────────────────────────────────────────────────
+# The default rules cover: AWS credentials, GitHub/GitLab tokens, Docker
+# credentials, private keys, connection strings, JWT tokens, and 140+ more.
+# We extend rather than replace so we get all of those for free.
+[extend]
+useDefault = true
+
+# ── Project-specific rules ────────────────────────────────────────────────────
+
+[[rules]]
+id          = "vault-token"
+description = "HashiCorp Vault token — starts with hvs. (Vault 1.10+) or s. (older)"
+regex       = '''(?i)(vault[_\-\s]?token|VAULT_TOKEN)[^\w]*(hvs\.[A-Za-z0-9_\-]{90,}|s\.[A-Za-z0-9]{24,})'''
+tags        = ["vault", "secret"]
+
+[[rules]]
+id          = "ecr-uri-with-creds"
+description = "ECR URI accidentally embedded with AWS account ID in a credential context"
+regex       = '''(?i)(password|secret|token|credential)[^\w]*\d{12}\.dkr\.ecr\.[a-z0-9\-]+\.amazonaws\.com'''
+tags        = ["aws", "ecr"]
+
+[[rules]]
+id          = "sonarqube-token"
+description = "SonarQube analysis token"
+regex       = '''(?i)(sonar[_\-]?token|SONAR_TOKEN)[^\w]*([a-f0-9]{40})'''
+tags        = ["sonarqube", "token"]
+
+[[rules]]
+id          = "kubernetes-secret-literal"
+description = "Kubernetes Secret value hardcoded in YAML (base64-like string assigned to 'data:' key)"
+regex       = '''(?i)^\s+(password|token|secret|key):\s+[A-Za-z0-9+/]{20,}={0,2}\s*$'''
+tags        = ["kubernetes", "secret"]
+paths       = ["**/*.yaml", "**/*.yml"]
+
+# ── Allowlist: known-safe patterns to suppress false positives ────────────────
+# Without this, Gitleaks would flag things like example placeholders in
+# documentation or YOUR_ACCOUNT_ID strings in Jenkinsfiles.
+
+[allowlist]
+description = "Known safe patterns for this project"
+regexes = [
+  # Placeholder strings used in documentation and guides
+  '''YOUR_ACCOUNT_ID''',
+  '''YOUR_GITHUB_PAT''',
+  '''YOUR_SONAR_TOKEN''',
+  '''YOUR_12_DIGIT_ACCOUNT_ID''',
+  '''VAULT_EXTERNAL_IP''',
+  '''YOUR_SLACK_WEBHOOK_URL''',
+  # Example/test values
+  '''example\.com''',
+  '''localhost''',
+  # Common test token patterns in docs
+  '''abc123''',
+  '''test-token''',
+  '''dummy''',
+]
+
+paths = [
+  # Skip generated files
+  '''node_modules/''',
+  '''\.terraform/''',
+  '''terraform\.tfstate''',
+  '''\.terraform\.lock\.hcl''',
+  # Skip this config file itself
+  '''\.gitleaks\.toml''',
+  # Skip test fixtures
+  '''__tests__/''',
+  '''test/fixtures/''',
+]

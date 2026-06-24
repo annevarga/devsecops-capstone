@@ -1,0 +1,66 @@
+# Kubernetes-Manifests-file/monitoring/backend-servicemonitor.yaml
+#
+# A ServiceMonitor is a custom resource from the Prometheus Operator (installed
+# as part of kube-prometheus-stack). It tells Prometheus: "watch for Services
+# matching these labels and scrape their /metrics endpoint on this interval."
+#
+# Without this, Prometheus has no idea your backend exists or has metrics.
+# With it, Prometheus automatically discovers the backend pods as they scale
+# up and down — no manual configuration needed.
+#
+# HOW PROMETHEUS DISCOVERS THIS:
+#   1. You apply this YAML to the cluster
+#   2. The Prometheus Operator detects the new ServiceMonitor
+#   3. It regenerates Prometheus's scrape config to include your backend
+#   4. Prometheus starts scraping http://backend-svc:8080/metrics every 15s
+#   5. Metrics appear in Grafana within 1 minute
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend-metrics
+  namespace: three-tier
+
+  # This label MUST match the label selector on your Prometheus instance.
+  # kube-prometheus-stack by default looks for: release: monitoring
+  # (where "monitoring" is the Helm release name you used in Week 4)
+  labels:
+    release: monitoring
+
+spec:
+  # Which Services to monitor — matches by namespace and label selector.
+  # Only Services in the three-tier namespace with app=backend get scraped.
+  namespaceSelector:
+    matchNames:
+      - three-tier
+
+  selector:
+    matchLabels:
+      app: backend   # Must match the label on your backend Service
+
+  endpoints:
+    - port: http         # Must match the named port in your backend Service
+      path: /metrics     # The endpoint we added to Express
+      interval: 15s      # How often Prometheus scrapes (default: 30s, 15s is better for demos)
+      scrapeTimeout: 10s # How long to wait for a response before giving up
+
+---
+# Update your backend Service to add a named port — the ServiceMonitor
+# references the port by name ('http'), not by number.
+# Replace Kubernetes-Manifests-file/backend/service.yaml with this:
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+  namespace: three-tier
+  labels:
+    app: backend   # ServiceMonitor selector matches this label
+spec:
+  selector:
+    app: backend
+  ports:
+  - name: http       # Named port — ServiceMonitor references this by name
+    port: 8080
+    targetPort: 8080
+  type: ClusterIP
