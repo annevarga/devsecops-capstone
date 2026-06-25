@@ -7,17 +7,18 @@ pipeline {
     environment {
         SCANNER_HOME       = tool 'sonar-scanner'
         DOCKERHUB_USERNAME = 'annevarga'
-        IMAGE_NAME         = "${DOCKERHUB_USERNAME}/three-tier-frontend"
+        IMAGE_NAME         = "${DOCKERHUB_USERNAME}/three-tier-backend"
         IMAGE_TAG          = "${BUILD_NUMBER}"
+        NAMESPACE          = 'student-anett'
     }
     stages {
 
+        // Stage 1: Clean workspace before every build
         stage('Cleaning Workspace') {
-            steps {
-                cleanWs()
-            }
+            steps { cleanWs() }
         }
 
+        // Stage 2: Clone your repository
         stage('Checkout from Git') {
             steps {
                 git credentialsId: 'GITHUB',
@@ -26,12 +27,13 @@ pipeline {
             }
         }
 
+        // Stage 3: Scan for secrets — YOUR CUSTOM ADDITION
+        // Runs before any build to catch accidentally committed credentials
         stage('Gitleaks — Secret Scan') {
             steps {
                 script {
                     sh '''
-                        docker run --rm \
-                          -v $(pwd):/repo \
+                        docker run --rm -v $(pwd):/repo \
                           zricethezav/gitleaks:latest detect \
                           --source=/repo \
                           --config=/repo/.gitleaks.toml \
@@ -49,6 +51,7 @@ pipeline {
             }
         }
 
+        // Stage 4: Static code analysis for bugs and security hotspots
         stage('SonarQube Analysis') {
             steps {
                 dir('Application-Code/frontend') {
@@ -61,6 +64,7 @@ pipeline {
             }
         }
 
+        // Stage 5: Wait for SonarQube quality gate result
         stage('Quality Check') {
             steps {
                 script {
@@ -70,6 +74,7 @@ pipeline {
             }
         }
 
+        // Stage 6: Scan npm packages for known CVEs
         stage('OWASP Dependency-Check Scan') {
             steps {
                 dir('Application-Code/frontend') {
@@ -80,6 +85,7 @@ pipeline {
             }
         }
 
+        // Stage 7: Scan source files for vulnerabilities
         stage('Trivy File Scan') {
             steps {
                 dir('Application-Code/frontend') {
@@ -88,6 +94,7 @@ pipeline {
             }
         }
 
+        // Stage 8: Build Docker image tagged with build number
         stage('Docker Image Build') {
             steps {
                 script {
@@ -100,12 +107,14 @@ pipeline {
             }
         }
 
+        // Stage 9: Scan the built image for CVEs before pushing
         stage('Trivy Image Scan') {
             steps {
                 sh "trivy image ${IMAGE_NAME}:${IMAGE_TAG} > trivyimage.txt"
             }
         }
 
+        // Stage 10: Push the scanned image to Docker Hub
         stage('Push to Docker Hub') {
             steps {
                 withCredentials([usernamePassword(
@@ -120,25 +129,38 @@ pipeline {
             }
         }
 
+        // Stage 11: Update the image tag in the Git manifest
+        // When ArgoCD is approved, it will pick up this commit automatically
         stage('Update Deployment File') {
-            environment {
-                GIT_REPO_NAME = "devsecops-capstone"
-                GIT_USER_NAME = "annevarga"
-            }
             steps {
-                dir('Kubernetes-Manifests-file/Frontend') {
-                    withCredentials([string(credentialsId: 'github',
-                                           variable: 'GITHUB_TOKEN')]) {
-                        sh '''
-                            git config user.email "anettvarga.mail@mail.com"
-                            git config user.name "annevarga"
-                            imageTag=$(grep -oP '(?<=frontend:)[^ ]+' deployment.yaml)
-                            sed -i "s|image: annevarga/three-tier-frontend:${imageTag}|image: annevarga/three-tier-frontend:${BUILD_NUMBER}|" deployment.yaml
-                            git add deployment.yaml
-                            git commit -m "ci: update frontend image to build ${BUILD_NUMBER}"
-                            git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:master
-                        '''
-                    }
+                withCredentials([string(credentialsId: 'github',
+                                        variable: 'GITHUB_TOKEN')]) {
+                    sh '''
+                        git config user.email "anettvarga.mail@mail.com"
+                        git config user.name "annevarga"
+                        sed -i "s|image: annevarga/three-tier-frontend:.*|image: annevarga/three-tier-frontend:${BUILD_NUMBER}|" \
+                          Kubernetes-Manifests-file/Frontend/deployment.yaml
+                        git add Kubernetes-Manifests-file/Frontend/deployment.yaml
+                        git commit -m "ci: update frontend image to build ${BUILD_NUMBER} [skip ci]"
+                        git push https://${GITHUB_TOKEN}@github.com/annevarga/devsecops-capstone.git master
+                    '''
+                }
+            }
+        }
+
+        // Stage 12: Deploy directly to Kubernetes
+        // This replaces ArgoCD until cluster permissions are granted
+        // Once ArgoCD is approved, this stage can be removed
+        stage('Deploy to Kubernetes') {
+            steps {
+                withKubeConfig([credentialsId: 'kubeconfig-student-anett']) {
+                    sh """
+                        kubectl set image deployment/frontend \
+                          frontend=${IMAGE_NAME}:${IMAGE_TAG} \
+                          -n student-anett
+                        kubectl rollout status deployment/frontend \
+                          -n student-anett --timeout=120s
+                    """
                 }
             }
         }
@@ -151,3 +173,4 @@ pipeline {
         }
     }
 }
+
