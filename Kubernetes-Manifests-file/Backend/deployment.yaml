@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: api
-  namespace: three-tier
+  namespace: student-anett
   labels:
     role: api
     env: demo
@@ -22,14 +22,14 @@ spec:
         role: api
     spec:
       imagePullSecrets:
-      - name: ecr-registry-secret
+      - name: dockerhub-secret
       containers:
       - name: api
-        image: 407622020962.dkr.ecr.us-east-1.amazonaws.com/backend:1
+        image: annevarga/three-tier-backend:1
         imagePullPolicy: Always
         env:
           - name: MONGO_CONN_STR
-            value: mongodb://mongodb-svc:27017/todo?directConnection=true
+            value: mongodb://mongodb-svc.student-anett.svc.cluster.local:27017/todo?directConnection=true
           - name: MONGO_USERNAME
             valueFrom:
               secretKeyRef:
@@ -41,24 +41,24 @@ spec:
                 name: mongo-sec
                 key: password
         ports:
-        - containerPort: 3500
+        - containerPort: 8080
         livenessProbe:
           httpGet:
-            path: /healthz
-            port: 3500
+            path: /health
+            port: 8080
           initialDelaySeconds: 2
           periodSeconds: 5
         readinessProbe:
           httpGet:
-            path: /ready
-            port: 3500
+            path: /health
+            port: 8080
           initialDelaySeconds: 5
           periodSeconds: 5
           successThreshold: 1
         startupProbe:
           httpGet:
-            path: /started
-            port: 3500
+            path: /health
+            port: 8080
           initialDelaySeconds: 0
           periodSeconds: 10
           failureThreshold: 30

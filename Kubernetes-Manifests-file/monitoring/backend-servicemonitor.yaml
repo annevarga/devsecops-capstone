@@ -19,7 +19,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: backend-metrics
-  namespace: three-tier
+  namespace: student-anett
 
   # This label MUST match the label selector on your Prometheus instance.
   # kube-prometheus-stack by default looks for: release: monitoring
@@ -32,7 +32,7 @@ spec:
   # Only Services in the three-tier namespace with app=backend get scraped.
   namespaceSelector:
     matchNames:
-      - three-tier
+      - student-anett
 
   selector:
     matchLabels:
@@ -53,7 +53,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: backend-svc
-  namespace: three-tier
+  namespace: student-anett
   labels:
     app: backend   # ServiceMonitor selector matches this label
 spec:
