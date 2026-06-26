@@ -21,7 +21,7 @@ pipeline {
         // Stage 2: Clone your repository
         stage('Checkout from Git') {
             steps {
-                git credentialsId: 'GITHUB',
+                git credentialsId: 'github-clone',
                     url: 'https://github.com/annevarga/devsecops-capstone.git',
                     branch: 'master'
             }
