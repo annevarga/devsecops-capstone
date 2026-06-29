@@ -25,7 +25,7 @@ spec:
       - name: dockerhub-secret
       containers:
       - name: api
-        image: annevarga/three-tier-backend:11
+        image: annevarga/three-tier-backend:12
         imagePullPolicy: Always
         env:
           - name: MONGO_CONN_STR
