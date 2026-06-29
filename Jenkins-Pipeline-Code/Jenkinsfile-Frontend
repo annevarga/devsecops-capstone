@@ -5,7 +5,7 @@ pipeline {
         nodejs 'node20'
     }
     environment {
-        SCANNER_HOME       = tool 'sonar-scanner'
+        SCANNER_HOME       = tool 'SonarScanner'
         DOCKERHUB_USERNAME = 'annevarga'
         IMAGE_NAME         = "${DOCKERHUB_USERNAME}/three-tier-backend"
         IMAGE_TAG          = "${BUILD_NUMBER}"
