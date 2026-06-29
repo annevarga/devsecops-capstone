@@ -153,12 +153,12 @@ pipeline {
         // Once ArgoCD is approved, this stage can be removed
         stage('Deploy to Kubernetes') {
             steps {
-                withKubeConfig([credentialsId: 'kubeconfig-student-anett']) {
+                withCredentials([file(credentialsId: 'kubeconfig-student-anett', variable: 'KUBECONFIG')]) {
                     sh """
-                        kubectl set image deployment/backend \
+                        kubectl set image deployment/api \
                           api=${IMAGE_NAME}:${IMAGE_TAG} \
                           -n student-anett
-                        kubectl rollout status deployment/backend \
+                        kubectl rollout status deployment/api \
                           -n student-anett --timeout=120s
                     """
                 }
