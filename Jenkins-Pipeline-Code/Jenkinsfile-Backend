@@ -155,10 +155,12 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'kubeconfig-student-anett', variable: 'KUBECONFIG')]) {
                     sh """
-                        kubectl set image deployment/api \
+                        curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
+                        chmod +x kubectl
+                        ./kubectl set image deployment/api \
                           api=${IMAGE_NAME}:${IMAGE_TAG} \
                           -n student-anett
-                        kubectl rollout status deployment/api \
+                        ./kubectl rollout status deployment/api \
                           -n student-anett --timeout=120s
                     """
                 }
