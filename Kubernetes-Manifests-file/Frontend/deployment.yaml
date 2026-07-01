@@ -25,7 +25,7 @@ spec:
       - name: dockerhub-secret
       containers:
       - name: frontend
-        image: annevarga/three-tier-frontend:1
+        image: annevarga/three-tier-frontend:2
         imagePullPolicy: Always
         env:
           - name: REACT_APP_BACKEND_URL
